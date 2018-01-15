@@ -1,2 +1,2 @@
 # lib
-Python files, used in my projects
+Common Python files, used in my projects.
