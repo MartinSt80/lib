@@ -269,4 +269,20 @@ class NewCall:
 		except RuntimeError:
 			return []
 
+	def getAllUsers(self, active=None):
+		parameters = {
+			'action': 'getusers',
+			'API_type': 'PUMAPI',
+			'format': 'csv',
+			'noheaders': 'true',
+		}
+		if active is not None:
+			if active:
+				parameters['active'] = 'true'
+			else:
+				parameters['active'] = 'false'
+		try:
+			return self._performCall(parameters).replace('"', '').split()
+		except RuntimeError:
+			return []
 
