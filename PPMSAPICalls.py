@@ -286,3 +286,32 @@ class NewCall:
 		except RuntimeError:
 			return []
 
+	def getRunningSheet(self, PPMS_facility_id, day):
+			parameters = {
+				'action': 'getrunningsheet',
+				'plateformid': PPMS_facility_id,
+				'day': day,
+				'API_type': 'PUMAPI',
+				'format': 'csv',
+				'noheaders': 'true',
+			}
+			return self._performCall(parameters)
+
+	def getUserRights(self, login):
+		parameters = {
+				'action': 'getuserrights',
+				'login': login,
+				'API_type': 'PUMAPI',
+				'format': 'csv',
+				'noheaders': 'true',
+			}
+		return self._performCall(parameters).split()
+
+	def getSystems(self):
+		parameters = {
+			'action': 'getsystems',
+			'API_type': 'PUMAPI',
+			'format': 'csv',
+			'noheaders': 'true',
+		}
+		return self._performCall(parameters).rstrip().split('\r\n')
