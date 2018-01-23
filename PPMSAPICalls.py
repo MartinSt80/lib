@@ -19,7 +19,14 @@ class NewCall:
 
 	def __init__(self, mode):
 		self.mode = mode
-		self.SYSTEMoptions = Options.OptionReader('SystemOptions.txt')
+
+		# if we want to contact the Proxy, we need SystemOptions.txt for the AESkey and Proxy address:port
+		if self.mode == 'Proxy':
+			try:
+				self.SYSTEMoptions = Options.OptionReader('SystemOptions.txt')
+			except:
+				exit('SystemOptions.txt is missing, only direct API calls possible')
+
 
 		# if we want to contact the API directly, we need ProxyOptions for the APIkeys and URLs
 		if self.mode == 'PPMS API':
