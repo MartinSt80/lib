@@ -25,7 +25,7 @@ class NewCall:
 			try:
 				self.SYSTEMoptions = Options.OptionReader('SystemOptions.txt')
 			except:
-				exit('SystemOptions.txt is missing, only direct API calls possible')
+				raise Errors.APIError(msg='SystemOptions.txt is missing, only direct API calls possible')
 
 
 		# if we want to contact the API directly, we need ProxyOptions for the APIkeys and URLs
@@ -33,7 +33,7 @@ class NewCall:
 			try:
 				self.APIoptions = Options.OptionReader('ProxyOptions.txt')
 			except:
-				exit('ProxyOptions.txt is missing, only Proxy calls possible')
+				raise Errors.APIError(msg='ProxyOptions.txt is missing, only Proxy calls possible')
 
 	def _performCall(self, parameters):
 		if self.mode == 'PPMS API':
@@ -59,7 +59,7 @@ class NewCall:
 			except Errors.APIError:
 				raise
 		else:
-			Errors.APIError(msg='Unknown communication method, must be PPMS API or Proxy')
+			raise Errors.APIError(msg='Unknown communication method, must be PPMS API or Proxy')
 
 
 	def _sendToAPI(self, parameters):
@@ -137,7 +137,7 @@ class NewCall:
 
 	# get the bookings for the current day on a certain machine,
 	# return start, stop, user for each session as dict
-	def getTodaysBookings(self, PPMS_facility_id, PPMS_name):
+	def getTodaysBookings(self, PPMS_facility_id, PPMS_name, filter=True):
 		parameters = {
 			'action': 'getrunningsheet',
 			'plateformid': PPMS_facility_id,
@@ -149,20 +149,24 @@ class NewCall:
 
 		response = self._performCall(parameters).split('\r\n')
 
-		filtered_response = []
-		for entry in response:
-			entry = entry.split(',')
-			if len(entry) > 3:
-				if entry[3][1:-1] == PPMS_name: # getrunningsheet returns all bookings on a certain day
-					if entry[1][1:3] == entry[2][1:3]: # sessions shorter than 1 hour have same start and stop hour
-						filtered_response.append({'start': int(entry[1][1:3]),
-												  'stop': int(entry[2][1:3]) + 1,
-												  'user': entry[4][1:-1]})
-					else:
-						filtered_response.append({'start': int(entry[1][1:3]),
-												  'stop': int(entry[2][1:3]),
-												  'user': entry[4][1:-1]})
-		return filtered_response
+		if filter:
+			filtered_response = []
+			for entry in response:
+				entry = entry.split(',')
+				if len(entry) > 3:
+					if entry[3][1:-1] == PPMS_name: # getrunningsheet returns all bookings on a certain day
+						if entry[1][1:3] == entry[2][1:3]: # sessions shorter than 1 hour have same start and stop hour
+							filtered_response.append({'start': int(entry[1][1:3]),
+													  'stop': int(entry[2][1:3]) + 1,
+													  'user': entry[4][1:-1]})
+						else:
+							filtered_response.append({'start': int(entry[1][1:3]),
+													  'stop': int(entry[2][1:3]),
+													  'user': entry[4][1:-1]})
+			return filtered_response
+
+		else:
+			return response
 
 
 	# get the User Name from the login
