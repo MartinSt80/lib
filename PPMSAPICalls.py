@@ -41,24 +41,25 @@ class NewCall:
 
 			# check if we got a proper response, HTTP status code == 200
 			if not response.status_code == 200:
-				raise RuntimeError('API didn\'t return a proper response')
+				raise Errors.APIError(True, False, msg='API didn\'t return a proper response')
 
 			# check if there is some data in the response, empty response, check parameters, options
 			if response.text:
 				return response.text
 			else:
-				raise RuntimeError('Empty response from API')
+				raise Errors.APIError(False, True, msg='Empty response from API')
 
 		elif self.mode == 'Proxy':
 			response = self._sendToProxy(parameters)
 			# the proxy may forward an exception or a proper response
 			try:
 				raise response
-			except:
+			except TypeError:
 				return response.text
-
+			except Errors.APIError:
+				raise
 		else:
-			exit('Unknown communication method, must be PPMS API or Proxy')
+			Errors.APIError(msg='Unknown communication method, must be PPMS API or Proxy')
 
 
 	def _sendToAPI(self, parameters):
@@ -73,13 +74,13 @@ class NewCall:
 			parameters['apikey'] = self.APIoptions.getValue('API2_key')
 			URL = self.APIoptions.getValue('API2_URL')
 		else:
-			exit('Unknown API interface type, must be PUMAPI or API2')
+			raise Errors.APIError(msg='Unknown API interface type, must be PUMAPI or API2')
 
 		return requests.post(URL, headers=header, data=parameters)
 
 
 
-	# dict is pickled and sent to proxy, response is unpickled and returned
+	# dict is pickled and encrypted and sent to proxy, response is decrypted, unpickled and returned
 	def	_sendToProxy(self, param_dict):
 
 		pickled_dict = pickle.dumps(param_dict)
@@ -99,14 +100,23 @@ class NewCall:
 		proxy_socket.connect((self.SYSTEMoptions.getValue('proxy_address'), int(self.SYSTEMoptions.getValue('API_port'))))
 		proxy_socket.sendall(packed_dict)
 
+		#From here we handle the encrypted response from the proxy
+
 		encrypted_call = self._receive_data(proxy_socket)
 		proxy_socket.close()
-
 		iv_response = encrypted_call[:AES.block_size]
 		encrypted_response = encrypted_call[AES.block_size:]
 
 		decryptor = AES.new(AES_key, AES.MODE_CFB, iv_response)
-		return pickle.loads(decryptor.decrypt(encrypted_response))
+		decrypted_response = decryptor.decrypt(encrypted_response)
+
+		#try to catch wrong AES-keys at unpickle step with KeyError
+		try:
+			response = pickle.loads(decrypted_response)
+		except KeyError:
+			raise Errors.APIError(msg='Unpickle step failed, probably AES-keys don\'t match')
+		return response
+
 
 	def _receive_data(self, sock):	# Read message length and unpack it into an integer
 		raw_msglen = self._recvall(sock, 4)
