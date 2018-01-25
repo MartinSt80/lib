@@ -25,7 +25,7 @@ class NewCall:
 			try:
 				self.SYSTEMoptions = Options.OptionReader('SystemOptions.txt')
 			except:
-				raise Errors.APIError(msg='SystemOptions.txt is missing, only direct API calls possible')
+				raise Errors.FatalError(msg='SystemOptions.txt is missing, only direct API calls possible')
 
 
 		# if we want to contact the API directly, we need ProxyOptions for the APIkeys and URLs
@@ -33,7 +33,7 @@ class NewCall:
 			try:
 				self.APIoptions = Options.OptionReader('ProxyOptions.txt')
 			except:
-				raise Errors.APIError(msg='ProxyOptions.txt is missing, only Proxy calls possible')
+				raise Errors.FatalError(msg='ProxyOptions.txt is missing, only Proxy calls possible')
 
 	def _performCall(self, parameters):
 		if self.mode == 'PPMS API':
@@ -59,7 +59,7 @@ class NewCall:
 			except Errors.APIError:
 				raise
 		else:
-			raise Errors.APIError(msg='Unknown communication method, must be PPMS API or Proxy')
+			raise Errors.FatalError(msg='Unknown communication method, must be PPMS API or Proxy')
 
 
 	def _sendToAPI(self, parameters):

@@ -50,3 +50,12 @@ class APIError(Exception):
 		self.request_not_successful = request_not_successful
 		self.empty_response = empty_response
 		self.msg = msg
+
+class FatalError(Exception):
+	"""Raised when the PPMS-API request was not successful or no response was returned
+
+	Attributes:
+
+	 """
+	def __init__(self, msg=''):
+		self.msg = msg
