@@ -54,9 +54,9 @@ class NewCall:
 			try:
 				raise response
 			except TypeError:
-				return response.text
-			except Errors.APIError:
-				raise
+				return response
+
+
 		else:
 			raise Errors.FatalError(msg='Unknown communication method, must be \'PPMS API\' or \'Proxy\'')
 
