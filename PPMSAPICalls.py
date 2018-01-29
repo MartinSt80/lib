@@ -38,12 +38,11 @@ class NewCall:
 	def _performCall(self, parameters):
 		if self.mode == 'PPMS API':
 			response = self._sendToAPI(parameters)
-
-			# check if we got a proper response, HTTP status code == 200
+			# check if we got a proper response, i.e. HTTP status code == 200
 			if not response.status_code == 200:
-				raise Errors.APIError(True, False, msg='API didn\'t return a proper response')
+				raise Errors.APIError(True, False, msg='Error ' + str(response.status_code) + ': API didn\'t return a proper response')
 
-			# check if there is some data in the response, empty response, check parameters, options
+			# check if there is some data in the response
 			if response.text:
 				return response.text
 			else:
@@ -59,7 +58,7 @@ class NewCall:
 			except Errors.APIError:
 				raise
 		else:
-			raise Errors.FatalError(msg='Unknown communication method, must be PPMS API or Proxy')
+			raise Errors.FatalError(msg='Unknown communication method, must be \'PPMS API\' or \'Proxy\'')
 
 
 	def _sendToAPI(self, parameters):
@@ -74,7 +73,7 @@ class NewCall:
 			parameters['apikey'] = self.APIoptions.getValue('API2_key')
 			URL = self.APIoptions.getValue('API2_URL')
 		else:
-			raise Errors.APIError(msg='Unknown API interface type, must be PUMAPI or API2')
+			raise Errors.APIError(msg='Unknown API interface type, must be \'PUMAPI\' or \'API2\'')
 
 		return requests.post(URL, headers=header, data=parameters)
 
@@ -97,8 +96,11 @@ class NewCall:
 		packed_dict = struct.pack('>I', len(encrypted_dict)) + encrypted_dict
 
 		proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		proxy_socket.connect((self.SYSTEMoptions.getValue('proxy_address'), int(self.SYSTEMoptions.getValue('API_port'))))
-		proxy_socket.sendall(packed_dict)
+		try:
+			proxy_socket.connect((self.SYSTEMoptions.getValue('proxy_address'), int(self.SYSTEMoptions.getValue('API_port'))))
+			proxy_socket.sendall(packed_dict)
+		except socket.error as e:
+			raise Errors.APIError(msg=e[1])
 
 		#From here we handle the encrypted response from the proxy
 
@@ -218,12 +220,7 @@ class NewCall:
 			'outformat': 'json',
 		}
 
-		try:
-			response = json.loads(self._performCall(parameters))[0]
-			session_id = response['id']
-			return session_id
-		except RuntimeError:
-			return None
+		return json.loads(self._performCall(parameters))[0]
 
 
 	def getUserID(self, user_name, PPMS_facility_id):
