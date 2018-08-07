@@ -19,39 +19,46 @@ class NewCall:
 
 	def __init__(self, mode):
 		self.mode = mode
-		self.SYSTEMoptions = Options.OptionReader('SystemOptions.txt')
+
+		# if we want to contact the Proxy, we need SystemOptions.txt for the AESkey and Proxy address:port
+		if self.mode == 'Proxy':
+			try:
+				self.SYSTEMoptions = Options.OptionReader('SystemOptions.txt')
+			except:
+				raise Errors.FatalError(msg='SystemOptions.txt is missing, only direct API calls possible')
+
 
 		# if we want to contact the API directly, we need ProxyOptions for the APIkeys and URLs
 		if self.mode == 'PPMS API':
 			try:
 				self.APIoptions = Options.OptionReader('ProxyOptions.txt')
 			except:
-				exit('ProxyOptions.txt is missing, only Proxy calls possible')
+				raise Errors.FatalError(msg='ProxyOptions.txt is missing, only Proxy calls possible')
 
 	def _performCall(self, parameters):
 		if self.mode == 'PPMS API':
 			response = self._sendToAPI(parameters)
-
-			# check if we got a proper response, HTTP status code == 200
+			# check if we got a proper response, i.e. HTTP status code == 200
 			if not response.status_code == 200:
-				raise RuntimeError('API didn\'t return a proper response')
+				raise Errors.APIError(True, False, msg='Error ' + str(response.status_code) + ': API didn\'t return a proper response')
 
-			# check if there is some data in the response, empty response, check parameters, options
+			# check if there is some data in the response
 			if response.text:
 				return response.text
 			else:
-				raise RuntimeError('Empty response from API')
+				raise Errors.APIError(False, True, msg='Empty response from API')
 
 		elif self.mode == 'Proxy':
 			response = self._sendToProxy(parameters)
 			# the proxy may forward an exception or a proper response
 			try:
 				raise response
-			except:
-				return response.text
+			except TypeError:
+				return response
+
 
 		else:
-			exit('Unknown communication method, must be PPMS API or Proxy')
+			raise Errors.FatalError(msg='Unknown communication method, must be \'PPMS API\' or \'Proxy\'')
 
 
 	def _sendToAPI(self, parameters):
@@ -66,13 +73,13 @@ class NewCall:
 			parameters['apikey'] = self.APIoptions.getValue('API2_key')
 			URL = self.APIoptions.getValue('API2_URL')
 		else:
-			exit('Unknown API interface type, must be PUMAPI or API2')
+			raise Errors.APIError(msg='Unknown API interface type, must be \'PUMAPI\' or \'API2\'')
 
 		return requests.post(URL, headers=header, data=parameters)
 
 
 
-	# dict is pickled and sent to proxy, response is unpickled and returned
+	# dict is pickled and encrypted and sent to proxy, response is decrypted, unpickled and returned
 	def	_sendToProxy(self, param_dict):
 
 		pickled_dict = pickle.dumps(param_dict)
@@ -89,17 +96,29 @@ class NewCall:
 		packed_dict = struct.pack('>I', len(encrypted_dict)) + encrypted_dict
 
 		proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		proxy_socket.connect((self.SYSTEMoptions.getValue('proxy_address'), int(self.SYSTEMoptions.getValue('API_port'))))
-		proxy_socket.sendall(packed_dict)
+		try:
+			proxy_socket.connect((self.SYSTEMoptions.getValue('proxy_address'), int(self.SYSTEMoptions.getValue('API_port'))))
+			proxy_socket.sendall(packed_dict)
+		except socket.error as e:
+			raise Errors.APIError(msg=e[1])
+
+		#From here we handle the encrypted response from the proxy
 
 		encrypted_call = self._receive_data(proxy_socket)
 		proxy_socket.close()
-
 		iv_response = encrypted_call[:AES.block_size]
 		encrypted_response = encrypted_call[AES.block_size:]
 
 		decryptor = AES.new(AES_key, AES.MODE_CFB, iv_response)
-		return pickle.loads(decryptor.decrypt(encrypted_response))
+		decrypted_response = decryptor.decrypt(encrypted_response)
+
+		#try to catch wrong AES-keys at unpickle step with KeyError
+		try:
+			response = pickle.loads(decrypted_response)
+		except KeyError:
+			raise Errors.APIError(msg='Unpickle step failed, probably AES-keys don\'t match')
+		return response
+
 
 	def _receive_data(self, sock):	# Read message length and unpack it into an integer
 		raw_msglen = self._recvall(sock, 4)
@@ -120,7 +139,7 @@ class NewCall:
 
 	# get the bookings for the current day on a certain machine,
 	# return start, stop, user for each session as dict
-	def getTodaysBookings(self, PPMS_facility_id, PPMS_name):
+	def getTodaysBookings(self, PPMS_facility_id, PPMS_name, filter=True):
 		parameters = {
 			'action': 'getrunningsheet',
 			'plateformid': PPMS_facility_id,
@@ -132,20 +151,24 @@ class NewCall:
 
 		response = self._performCall(parameters).split('\r\n')
 
-		filtered_response = []
-		for entry in response:
-			entry = entry.split(',')
-			if len(entry) > 3:
-				if entry[3][1:-1] == PPMS_name: # getrunningsheet returns all bookings on a certain day
-					if entry[1][1:3] == entry[2][1:3]: # sessions shorter than 1 hour have same start and stop hour
-						filtered_response.append({'start': int(entry[1][1:3]),
-												  'stop': int(entry[2][1:3]) + 1,
-												  'user': entry[4][1:-1]})
-					else:
-						filtered_response.append({'start': int(entry[1][1:3]),
-												  'stop': int(entry[2][1:3]),
-												  'user': entry[4][1:-1]})
-		return filtered_response
+		if filter:
+			filtered_response = []
+			for entry in response:
+				entry = entry.split(',')
+				if len(entry) > 3:
+					if entry[3][1:-1] == PPMS_name: # getrunningsheet returns all bookings on a certain day
+						if entry[1][1:3] == entry[2][1:3]: # sessions shorter than 1 hour have same start and stop hour
+							filtered_response.append({'start': int(entry[1][1:3]),
+													  'stop': int(entry[2][1:3]) + 1,
+													  'user': entry[4][1:-1]})
+						else:
+							filtered_response.append({'start': int(entry[1][1:3]),
+													  'stop': int(entry[2][1:3]),
+													  'user': entry[4][1:-1]})
+			return filtered_response
+
+		else:
+			return response
 
 
 	# get the User Name from the login
@@ -197,12 +220,7 @@ class NewCall:
 			'outformat': 'json',
 		}
 
-		try:
-			response = json.loads(self._performCall(parameters))[0]
-			session_id = response['id']
-			return session_id
-		except RuntimeError:
-			return None
+		return json.loads(self._performCall(parameters))[0]
 
 
 	def getUserID(self, user_name, PPMS_facility_id):
@@ -269,4 +287,49 @@ class NewCall:
 		except RuntimeError:
 			return []
 
+	def getAllUsers(self, active=None):
+		parameters = {
+			'action': 'getusers',
+			'API_type': 'PUMAPI',
+			'format': 'csv',
+			'noheaders': 'true',
+		}
+		if active is not None:
+			if active:
+				parameters['active'] = 'true'
+			else:
+				parameters['active'] = 'false'
+		try:
+			return self._performCall(parameters).replace('"', '').split()
+		except RuntimeError:
+			return []
 
+	def getRunningSheet(self, PPMS_facility_id, day):
+			parameters = {
+				'action': 'getrunningsheet',
+				'plateformid': PPMS_facility_id,
+				'day': day,
+				'API_type': 'PUMAPI',
+				'format': 'csv',
+				'noheaders': 'true',
+			}
+			return self._performCall(parameters)
+
+	def getUserRights(self, login):
+		parameters = {
+				'action': 'getuserrights',
+				'login': login,
+				'API_type': 'PUMAPI',
+				'format': 'csv',
+				'noheaders': 'true',
+			}
+		return self._performCall(parameters).split()
+
+	def getSystems(self):
+		parameters = {
+			'action': 'getsystems',
+			'API_type': 'PUMAPI',
+			'format': 'csv',
+			'noheaders': 'true',
+		}
+		return self._performCall(parameters).rstrip().split('\r\n')
