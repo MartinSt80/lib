@@ -51,11 +51,13 @@ class APIError(Exception):
 		self.empty_response = empty_response
 		self.msg = msg
 
+	def __str__(self):
+		return self.msg
+
 class FatalError(Exception):
-	"""Raised when the PPMS-API request was not successful or no response was returned
-
-	Attributes:
-
-	 """
+	"""Raised when the PPMS-API request was not successful or no response was returned """
 	def __init__(self, msg=''):
 		self.msg = msg
+
+	def __str__(self):
+		return self.msg

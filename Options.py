@@ -21,7 +21,9 @@ class OptionReader:
 				self.options[single_option[0].strip(' ')] = single_option[1].strip(' ')
 
 		for key in required_keys:
-			if key not in self.options:
+			try:
+				_ = self.options[key]
+			except KeyError:
 				raise Errors.FatalError(key + ' was not found in ' + file_name)
 
 
