@@ -284,7 +284,7 @@ class NewCall:
 		}
 		try:
 			return self._performCall(parameters).replace('"', '').split()
-		except RuntimeError:
+		except Errors.APIError:
 			return []
 
 	def getAllUsers(self, active=None):
@@ -301,7 +301,7 @@ class NewCall:
 				parameters['active'] = 'false'
 		try:
 			return self._performCall(parameters).replace('"', '').split()
-		except RuntimeError:
+		except Errors.APIError:
 			return []
 
 	def getRunningSheet(self, PPMS_facility_id, day):
