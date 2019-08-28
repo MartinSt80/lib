@@ -346,21 +346,23 @@ class NewCall:
 			'noheaders': 'true',
 		}
 
+		filtered_response = []
+
 		try:
 			response = self._performCall(parameters).split('\r\n')
 		except Errors.APIError:
-			return []
-
-		filtered_response = []
-		for entry in response:
-			entry = entry.split(',')
-			if len(entry) > 3:
-				if entry[1][1:3] == entry[2][1:3]:  # sessions shorter than 1 hour have same start and stop hour
-					filtered_response.append({'start': int(entry[1][1:3]),
-											  'stop': int(entry[2][1:3]) + 1,
-											  'system': entry[3][1:-1]})
-				else:
-					filtered_response.append({'start': int(entry[1][1:3]),
-											  'stop': int(entry[2][1:3]),
-											  'system': entry[3][1:-1]})
-		return filtered_response
+			pass
+		else:
+			for entry in response:
+				entry = entry.split(',')
+				if len(entry) > 3:
+					if entry[1][1:3] == entry[2][1:3]:  # sessions shorter than 1 hour have same start and stop hour
+						filtered_response.append({'start': int(entry[1][1:3]),
+												  'stop': int(entry[2][1:3]) + 1,
+												  'system': entry[3][1:-1]})
+					else:
+						filtered_response.append({'start': int(entry[1][1:3]),
+												  'stop': int(entry[2][1:3]),
+												  'system': entry[3][1:-1]})
+		finally:
+			return filtered_response
