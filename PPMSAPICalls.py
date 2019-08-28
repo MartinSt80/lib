@@ -346,7 +346,10 @@ class NewCall:
 			'noheaders': 'true',
 		}
 
-		response = self._performCall(parameters).split('\r\n')
+		try:
+			response = self._performCall(parameters).split('\r\n')
+		except Errors.APIError:
+			return []
 
 		filtered_response = []
 		for entry in response:
