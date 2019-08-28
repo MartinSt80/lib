@@ -333,3 +333,31 @@ class NewCall:
 			'noheaders': 'true',
 		}
 		return self._performCall(parameters).rstrip().split('\r\n')
+
+	# get the bookings for a specified date,
+	# return start, stop for each session as dict
+	def getSystemBookings(self, PPMS_facility_id, datetime_date):
+		parameters = {
+			'action': 'getrunningsheet',
+			'plateformid': PPMS_facility_id,
+			'day': datetime_date.strftime('%Y-%m-%d'),
+			'API_type': 'PUMAPI',
+			'format': 'csv',
+			'noheaders': 'true',
+		}
+
+		response = self._performCall(parameters).split('\r\n')
+
+		filtered_response = []
+		for entry in response:
+			entry = entry.split(',')
+			if len(entry) > 3:
+				if entry[1][1:3] == entry[2][1:3]:  # sessions shorter than 1 hour have same start and stop hour
+					filtered_response.append({'start': int(entry[1][1:3]),
+											  'stop': int(entry[2][1:3]) + 1,
+											  'system': entry[3][1:-1]})
+				else:
+					filtered_response.append({'start': int(entry[1][1:3]),
+											  'stop': int(entry[2][1:3]),
+											  'system': entry[3][1:-1]})
+		return filtered_response
