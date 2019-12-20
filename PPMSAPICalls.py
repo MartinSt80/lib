@@ -55,8 +55,6 @@ class NewCall:
 				raise response
 			except TypeError:
 				return response
-
-
 		else:
 			raise Errors.FatalError(msg='Unknown communication method, must be \'PPMS API\' or \'Proxy\'')
 
@@ -270,8 +268,16 @@ class NewCall:
 			'unitlogin': group_id,
 			'format': 'json',
 		}
-
 		return json.loads(self._performCall(parameters))['headname']
+
+	def getGroupFullInfo(self, group_id):
+		parameters = {
+			'action': 'getgroup',
+			'API_type': 'PUMAPI',
+			'unitlogin': group_id,
+			'format': 'json',
+		}
+		return json.loads(self._performCall(parameters))
 
 	def getGroupUsers(self, group_id):
 		parameters = {
@@ -315,10 +321,21 @@ class NewCall:
 			}
 			return self._performCall(parameters)
 
-	def getUserRights(self, login):
-		parameters = {
-				'action': 'getuserrights',
-				'login': login,
+	def getUserRights(self, login=None, system_id=None):
+		if not (login or system_id):
+			raise Errors.APIError(msg='User login or system id have to be specified!')
+		if login:
+			parameters = {
+					'action': 'getuserrights',
+					'login': login,
+					'API_type': 'PUMAPI',
+					'format': 'csv',
+					'noheaders': 'true',
+				}
+		if system_id:
+			parameters = {
+				'action': 'getsysrights',
+				'id': system_id,
 				'API_type': 'PUMAPI',
 				'format': 'csv',
 				'noheaders': 'true',
@@ -366,3 +383,38 @@ class NewCall:
 												  'system': entry[3][1:-1]})
 		finally:
 			return filtered_response
+
+	# get the time a system was used last by a user
+	def getLastUsage(self, login=None, system_id=None):
+		if not (login or system_id):
+			raise Errors.APIError(msg='User login or system id have to be specified!')
+		parameters = {
+			'action': 'getuserexp',
+			'API_type': 'PUMAPI',
+			'format': 'json',
+		}
+		if login:
+			parameters['login'] = login
+		if system_id:
+			parameters['id'] = system_id
+
+		try:
+			response_json = self._performCall(parameters)
+		except Errors.APIError as e:
+			if e.empty_response:
+				response_json = '{}'
+			else:
+				raise e
+		return json.loads(response_json)
+
+
+	def getUserFullInfo(self, user_login):
+		parameters = {
+				'action': 'getuser',
+				'login': user_login,
+				'API_type': 'PUMAPI',
+				'format': 'json',
+		}
+
+		response = json.loads(self._performCall(parameters))
+		return response
