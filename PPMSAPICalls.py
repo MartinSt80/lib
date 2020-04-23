@@ -418,3 +418,18 @@ class NewCall:
 
 		response = json.loads(self._performCall(parameters))
 		return response
+
+	def setUserRight(self, system_id, user_login, user_right=None):
+		valid_user_rights = ['A', 'N', 'S', 'D']
+		if not user_right:
+			user_right = 'A'
+		if user_right not in valid_user_rights:
+			raise Errors.APIError("User right abbreviation not valid! Must be 'A', 'N', 'S' or 'D'")
+		parameters = {
+				'action': 'setright',
+				'id': str(system_id),
+				'login': user_login,
+				'type': user_right,
+				'API_type': 'PUMAPI',
+		}
+		self._performCall(parameters)
