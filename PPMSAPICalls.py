@@ -147,7 +147,14 @@ class NewCall:
 			'noheaders': 'true',
 		}
 
-		response = self._performCall(parameters).split('\r\n')
+		try:
+			response = self._performCall(parameters).split('\r\n')
+		except Errors.APIError as e:
+			if e.request_not_successful:
+				raise e
+			else:
+				if e.empty_response:
+					return []
 
 		if filter:
 			filtered_response = []
