@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os, sys
-import Errors
+from lib import Errors
 
 class OptionReader:
 
