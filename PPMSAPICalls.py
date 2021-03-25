@@ -12,7 +12,7 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 
-from lib import Options, Errors
+from ppms_lib import Options, Errors
 
 
 class NewCall:

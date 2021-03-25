@@ -5,7 +5,7 @@ import email.utils
 import smtplib
 from email.mime.text import MIMEText
 
-from lib import Options
+from ppms_lib import Options
 
 
 def sendMail(msg, type):
