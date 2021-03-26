@@ -2,16 +2,23 @@
 # -*- coding: utf-8
 
 import datetime
+import os
 
 from ppms_lib import Options, PPMSAPICalls, Errors
 
-SYSTEM_OPTIONS = Options.OptionReader('SystemOptions.txt')
+try:
+	current_directory = os.path.dirname(__file__)
+	parent_directory = os.path.split(current_directory)[0]
+	print(parent_directory)
+	SYSTEM_OPTIONS = Options.OptionReader(parent_directory + '/SystemOptions.txt')
+except Errors.FatalError as e:
+	exit(e.msg)
 
 facility_id = SYSTEM_OPTIONS.getValue('PPMS_facilityid')
 system_id = SYSTEM_OPTIONS.getValue('PPMS_systemid')
 calling_mode = SYSTEM_OPTIONS.getValue('calling_mode')
 
-get_systemname = PPMSAPICalls.NewCall(calling_mode)
+get_systemname = PPMSAPICalls.NewCall(calling_mode, SYSTEM_OPTIONS)
 try:
 	system_name = get_systemname.getSystemName(system_id)
 	print(system_name)

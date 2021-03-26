@@ -17,16 +17,17 @@ from ppms_lib import Options, Errors
 
 class NewCall:
 
-	def __init__(self, mode):
+	def __init__(self, mode, system_options=None):
 		self.mode = mode
 
 		# if we want to contact the Proxy, we need SystemOptions.txt for the AESkey and Proxy address:port
 		if self.mode == 'Proxy':
-			try:
-				self.SYSTEMoptions = Options.OptionReader('SystemOptions.txt')
-			except:
-				raise Errors.FatalError(msg='SystemOptions.txt is missing, only direct API calls possible')
-
+			if system_options is not None:
+				self.SYSTEMoptions = system_options
+				required_keys = ('AES_key', 'proxy_address', 'API_port')
+				self.SYSTEMoptions.checkKeys(required_keys)
+			else:
+				raise Errors.FatalError(msg='SystemOptions info not provided, only direct API calls possible')
 
 		# if we want to contact the API directly, we need ProxyOptions for the APIkeys and URLs
 		if self.mode == 'PPMS API':
@@ -83,13 +84,14 @@ class NewCall:
 		pickled_dict = pickle.dumps(param_dict)
 
 		iv = Random.new().read(AES.block_size)
+		print(AES.block_size)
 
-		AES_plainkey = self.SYSTEMoptions.getValue('AES_key')
+		AES_plainkey = self.SYSTEMoptions.getValue('AES_key').encode("utf8")
 		AES_key = SHA256.new()
 		AES_key.update(AES_plainkey)
 		AES_key = AES_key.digest()
 
-		encryptor = AES.new(AES_key, AES.MODE_CFB, iv)
+		encryptor = AES.new(AES_key, AES.MODE_CFB, iv, segment_size=AES.block_size * 8)
 		encrypted_dict = iv + encryptor.encrypt(pickled_dict)
 		packed_dict = struct.pack('>I', len(encrypted_dict)) + encrypted_dict
 
@@ -98,10 +100,9 @@ class NewCall:
 			proxy_socket.connect((self.SYSTEMoptions.getValue('proxy_address'), int(self.SYSTEMoptions.getValue('API_port'))))
 			proxy_socket.sendall(packed_dict)
 		except socket.error as e:
-			raise Errors.APIError(msg=e[1])
+			raise Errors.APIError(msg=e)
 
 		#From here we handle the encrypted response from the proxy
-
 		encrypted_call = self._receive_data(proxy_socket)
 		proxy_socket.close()
 		iv_response = encrypted_call[:AES.block_size]

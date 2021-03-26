@@ -7,11 +7,13 @@ from ppms_lib import Errors
 class OptionReader:
 
 	def __init__(self, file_name, required_keys=()):
-		option_file = os.path.join(sys.path[0], file_name)
+
+		self.option_file = os.path.join(sys.path[0], file_name)
+
 		try:
-			with open(option_file, 'r') as f:
+			with open(self.option_file, 'r') as f:
 				content = f.readlines()
-		except IOError:
+		except FileNotFoundError:
 			raise Errors.FatalError(file_name + ' not found!')
 
 		self.options = {}
@@ -20,12 +22,7 @@ class OptionReader:
 				single_option = line.strip('\r\n').split('=')
 				self.options[single_option[0].strip(' ')] = single_option[1].strip(' ')
 
-		for key in required_keys:
-			try:
-				_ = self.options[key]
-			except KeyError:
-				raise Errors.FatalError(key + ' was not found in ' + file_name)
-
+		self.checkKeys(required_keys)
 
 	def getValue(self, key):
 		return self.options[key]
@@ -33,4 +30,9 @@ class OptionReader:
 	def setValue(self, key, value):
 		self.options[key] = value
 
-
+	def checkKeys(self, required_keys):
+		for key in required_keys:
+			try:
+				_ = self.options[key]
+			except KeyError:
+				raise Errors.FatalError(key + ' was not found in ' + self.option_file)
