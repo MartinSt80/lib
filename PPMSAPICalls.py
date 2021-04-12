@@ -81,19 +81,18 @@ class NewCall:
 	# dict is pickled and encrypted and sent to proxy, response is decrypted, unpickled and returned
 	def	_sendToProxy(self, param_dict):
 
-		pickled_dict = pickle.dumps(param_dict)
+		pickled_dict = pickle.dumps(param_dict, protocol=2)
 
 		iv = Random.new().read(AES.block_size)
-		print(AES.block_size)
 
-		AES_plainkey = self.SYSTEMoptions.getValue('AES_key').encode("utf8")
+		AES_plainkey = self.SYSTEMoptions.getValue('AES_key').encode('utf8')
 		AES_key = SHA256.new()
 		AES_key.update(AES_plainkey)
 		AES_key = AES_key.digest()
 
-		encryptor = AES.new(AES_key, AES.MODE_CFB, iv, segment_size=AES.block_size * 8)
+		encryptor = AES.new(AES_key, AES.MODE_CFB, iv)
 		encrypted_dict = iv + encryptor.encrypt(pickled_dict)
-		packed_dict = struct.pack('>I', len(encrypted_dict)) + encrypted_dict
+		packed_dict = bytes(struct.pack('>I', len(encrypted_dict))) + encrypted_dict
 
 		proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
@@ -128,7 +127,7 @@ class NewCall:
 		return self._recvall(sock, msglen)
 
 	def _recvall(self, sock, n): # Helper function to recv n bytes or return None if EOF is hit
-		data = ''
+		data = b''
 		while len(data) < n:
 			packet = sock.recv(n - len(data))
 			if not packet:
