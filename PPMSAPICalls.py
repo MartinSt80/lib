@@ -137,11 +137,35 @@ class NewCall:
 
 	# get the bookings for the current day on a certain machine,
 	# return start, stop, user for each session as dict
-	def getTodaysBookings(self, PPMS_facility_id, PPMS_name, filter=True):
+
+
+	def getBookedSessionsPeriod(self):
+		parameters = {
+			'action': 'Report70',
+			'startdate': '2021-07-07',
+			'enddate': '2021-07-31',
+			# 'dateformat': 'print',
+			'outformat': 'json',
+			'coreid': '2',
+			'API_type': 'API2',
+		}
+
+		try:
+			response = self._performCall(parameters)
+		except Errors.APIError as e:
+			if e.request_not_successful:
+				raise e
+			else:
+				if e.empty_response:
+					return []
+		else:
+			return json.loads(response)
+
+	def getTodaysBookings(self, PPMS_facility_id, PPMS_name=None, filter=True, day=time.strftime('%Y-%m-%d', time.localtime())):
 		parameters = {
 			'action': 'getrunningsheet',
 			'plateformid': PPMS_facility_id,
-			'day': time.strftime('%Y-%m-%d', time.localtime()),
+			'day': day,
 			'API_type': 'PUMAPI',
 			'format': 'csv',
 			'noheaders': 'true',
@@ -149,6 +173,7 @@ class NewCall:
 
 		try:
 			response = self._performCall(parameters).split('\r\n')
+			print(response)
 		except Errors.APIError as e:
 			if e.request_not_successful:
 				raise e
@@ -156,7 +181,7 @@ class NewCall:
 				if e.empty_response:
 					return []
 
-		if filter:
+		if filter and PPMS_name:
 			filtered_response = []
 			for entry in response:
 				entry = entry.split(',')
