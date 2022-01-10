@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os, sys
-from ppms_lib import Errors
+import Errors
 
 class OptionReader:
 
