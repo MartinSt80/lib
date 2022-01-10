@@ -4,7 +4,7 @@
 import datetime
 import os
 
-from ppms_lib import Options, PPMSAPICalls, Errors
+from lib import Options, PPMSAPICalls, Errors
 
 try:
 	current_directory = os.path.dirname(__file__)
